@@ -1,80 +1,63 @@
 #import <UIKit/UIKit.h>
-#import <objc/runtime.h>
 
-@interface YTMainVideoPlayerOverlayViewController : UIViewController
-- (UIView *)playerView;
-@end
+%hook YTMainAppVideoPlayerOverlayView
 
-@interface YTFlipperTweak : NSObject
-@property (nonatomic, assign) BOOL isFlipped;
-@property (nonatomic, strong) UIButton *flipButton;
-@end
+static UIButton *flipperButton = nil;
 
-static YTFlipperTweak *tweakInstance;
+// Hook vào phương thức initWithFrame để thêm nút
+- (id)initWithFrame:(CGRect)frame {
+    id orig = %orig; // Gọi phương thức gốc
 
-@implementation YTFlipperTweak
-@synthesize isFlipped = _isFlipped;
-@synthesize flipButton = _flipButton;
+    // Tạo nút Flipper với text "Flip"
+    if (!flipperButton) {
+        flipperButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        [flipperButton setTitle:@"Flip" forState:UIControlStateNormal];
+        [flipperButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        flipperButton.titleLabel.font = [UIFont systemFontOfSize:14]; // Kích thước chữ
+        flipperButton.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.7]; // Nền tối để dễ nhìn
+        flipperButton.layer.cornerRadius = 5; // Bo góc
+        flipperButton.frame = CGRectMake(0, 0, 50, 30); // Kích thước nút
+        [flipperButton addTarget:self action:@selector(flipperButtonTapped) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:flipperButton];
+    }
 
-+ (instancetype)sharedInstance {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        tweakInstance = [[YTFlipperTweak alloc] init];
-    });
-    return tweakInstance;
+    return orig;
 }
 
-- (void)toggleFlipForPlayerView:(UIView *)playerView {
-    self.isFlipped = !self.isFlipped;
-    
-    // Access the AVPlayerLayer or equivalent
-    for (CALayer *layer in playerView.layer.sublayers) {
-        if ([layer isKindOfClass:[objc_getClass("AVPlayerLayer") class]]) {
-            CATransform3D transform = self.isFlipped ? CATransform3DMakeScale(-1.0, 1.0, 1.0) : CATransform3DIdentity;
-            [CATransaction begin];
-            [CATransaction setAnimationDuration:0.3];
-            layer.transform = transform;
-            [CATransaction commit];
-            break;
-        }
+// Hook vào layoutSubviews để định vị nút
+- (void)layoutSubviews {
+    %orig; // Gọi phương thức gốc
+
+    // Lấy vị trí nút full màn hình để đặt nút Flipper gần đó
+    UIView *fullscreenButton = [self valueForKey:@"_fullscreenButton"]; // Có thể cần kiểm tra tên chính xác
+    if (fullscreenButton) {
+        CGRect fullscreenFrame = fullscreenButton.frame;
+        // Đặt nút Flipper ngay bên trái nút full màn hình
+        flipperButton.frame = CGRectMake(
+            fullscreenFrame.origin.x - 60, // Cách nút full màn hình 10px
+            fullscreenFrame.origin.y + (fullscreenFrame.size.height - 30) / 2, // Căn giữa theo chiều dọc
+            50,
+            30
+        );
     }
 }
 
-- (void)flipButtonTapped:(UIButton *)sender {
-    // Find the player view
-    YTMainVideoPlayerOverlayViewController *controller = (YTMainVideoPlayerOverlayViewController *)[sender.superview nextResponder];
-    if ([controller isKindOfClass:objc_getClass("YTMainVideoPlayerOverlayViewController")]) {
-        [self toggleFlipForPlayerView:[controller playerView]];
+// Phương thức xử lý khi nhấn nút
+%new
+- (void)flipperButtonTapped {
+    // Thêm hành động tùy chỉnh tại đây
+    // Ví dụ: Hiển thị thông báo
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"YTFlipper"
+                                                                 message:@"Flip button tapped!"
+                                                          preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK"
+                                              style:UIAlertActionStyleDefault
+                                            handler:nil]];
+    UIViewController *topController = [UIApplication sharedApplication].keyWindow.rootViewController;
+    while (topController.presentedViewController) {
+        topController = topController.presentedViewController;
     }
+    [topController presentViewController:alert animated:YES completion:nil];
 }
 
-@end
-
-%hook YTMainVideoPlayerOverlayViewController
-- (void)viewDidLoad {
-    %orig;
-
-    // Initialize tweak instance
-    tweakInstance = [YTFlipperTweak sharedInstance];
-
-    // Create flip button
-    UIButton *flipButton = [UIButton buttonWithType:UIButtonTypeCustom];
-    flipButton.frame = CGRectMake(20, 20, 40, 40); // Adjust position as needed
-    [flipButton setImage:[UIImage imageNamed:@"FlipIcon"] forState:UIControlStateNormal]; // Add icon (see below)
-    [flipButton addTarget:tweakInstance action:@selector(flipButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
-    flipButton.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.5];
-    flipButton.layer.cornerRadius = 20;
-    tweakInstance.flipButton = flipButton;
-
-    // Add button to overlay
-    [self.view addSubview:flipButton];
-}
-
-- (void)viewDidLayoutSubviews {
-    %orig;
-
-    // Adjust button position for landscape/portrait
-    CGSize viewSize = self.view.bounds.size;
-    tweakInstance.flipButton.frame = CGRectMake(viewSize.width - 60, 20, 40, 40); // Top-right corner
-}
 %end
