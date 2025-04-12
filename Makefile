@@ -17,5 +17,6 @@ TWEAK_NAME = YTFlipper
 YTFlipper_FILES = Tweak.x
 YTFlipper_CFLAGS = -fobjc-arc
 YTFlipper_FRAMEWORKS = UIKit CoreGraphics AVFoundation
+YTFlipper_RESOURCE_FILES = Resources/FlipIcon.png
 
 include $(THEOS_MAKE_PATH)/tweak.mk
