@@ -1,6 +1,9 @@
 #import <UIKit/UIKit.h>
 
-%hook YTMainAppVideoPlayerOverlayView
+@interface YTPlayerView : UIView
+@end
+
+%hook YTPlayerView
 
 static UIButton *flipperButton = nil;
 
@@ -13,10 +16,10 @@ static UIButton *flipperButton = nil;
         flipperButton = [UIButton buttonWithType:UIButtonTypeCustom];
         [flipperButton setTitle:@"Flip" forState:UIControlStateNormal];
         [flipperButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-        flipperButton.titleLabel.font = [UIFont systemFontOfSize:14]; // Kích thước chữ
-        flipperButton.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.7]; // Nền tối để dễ nhìn
-        flipperButton.layer.cornerRadius = 5; // Bo góc
-        flipperButton.frame = CGRectMake(0, 0, 50, 30); // Kích thước nút
+        flipperButton.titleLabel.font = [UIFont systemFontOfSize:14];
+        flipperButton.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.7];
+        flipperButton.layer.cornerRadius = 5;
+        flipperButton.frame = CGRectMake(0, 0, 50, 30);
         [flipperButton addTarget:self action:@selector(flipperButtonTapped) forControlEvents:UIControlEventTouchUpInside];
         [self addSubview:flipperButton];
     }
@@ -28,25 +31,25 @@ static UIButton *flipperButton = nil;
 - (void)layoutSubviews {
     %orig; // Gọi phương thức gốc
 
-    // Lấy vị trí nút full màn hình để đặt nút Flipper gần đó
-    UIView *fullscreenButton = [self valueForKey:@"_fullscreenButton"]; // Có thể cần kiểm tra tên chính xác
-    if (fullscreenButton) {
-        CGRect fullscreenFrame = fullscreenButton.frame;
-        // Đặt nút Flipper ngay bên trái nút full màn hình
-        flipperButton.frame = CGRectMake(
-            fullscreenFrame.origin.x - 60, // Cách nút full màn hình 10px
-            fullscreenFrame.origin.y + (fullscreenFrame.size.height - 30) / 2, // Căn giữa theo chiều dọc
-            50,
-            30
-        );
+    // Tìm nút full màn hình (có thể cần kiểm tra tên chính xác)
+    for (UIView *subview in self.subviews) {
+        if ([subview isKindOfClass:[UIButton class]] && subview.frame.size.width == 40 && subview.frame.size.height == 40) {
+            // Giả sử đây là nút full màn hình (kiểm tra kích thước)
+            CGRect fullscreenFrame = subview.frame;
+            flipperButton.frame = CGRectMake(
+                fullscreenFrame.origin.x - 60,
+                fullscreenFrame.origin.y + (fullscreenFrame.size.height - 30) / 2,
+                50,
+                30
+            );
+            break;
+        }
     }
 }
 
 // Phương thức xử lý khi nhấn nút
 %new
 - (void)flipperButtonTapped {
-    // Thêm hành động tùy chỉnh tại đây
-    // Ví dụ: Hiển thị thông báo
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"YTFlipper"
                                                                  message:@"Flip button tapped!"
                                                           preferredStyle:UIAlertControllerStyleAlert];
